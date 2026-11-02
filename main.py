@@ -61,7 +61,7 @@ def home(request: Request, db: Session = Depends(get_db)):
 def get_readings(request: Request, db: Session = Depends(get_db)):
     readings = (db.query(models.Reading)
         .order_by(desc(models.Reading.timestamp))
-        .limit(50)
+        .limit(75)
         .all()
     )
 
