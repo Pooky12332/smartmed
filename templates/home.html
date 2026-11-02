@@ -1,26 +1,43 @@
 {% extends "layout.html" %}
+
 {% block content %}
-  {% for sensor_reading in sensor_readings %}
-    <article class="content-section py-3 px-4 mb-4">
-      <div class="d-flex align-items-start gap-4">
-        <img class="rounded-circle article-img flex-shrink-0"
-             src="{{ sensor_reading.author.image_path}}"
-             alt="{{ sensor_reading.author.name }}'s profile picture"
-             width="64"
-             height="64"
-             loading="lazy">
-        <div class="flex-grow-1">
-          <div class="article-metadata mb-2">
-            <a class="me-2" href="{{url_for('user_readings', user_id=sensor_reading.author.id)}}">{{ sensor_reading.author.username }}</a>
-            <small class="text-body-secondary">{{ sensor_reading.date_timestamp.strftime('%d %B, %Y')}}</small>
-          </div>
-          <h2>
-            <a class="article-title"
-               href="{{ url_for('sensor_reading_page', sensor_reading_id=sensor_reading.id) }}">{{ sensor_reading.sensor }}</a>
-          </h2>
-          <p class="article-content">{{ sensor_reading.content }}</p>
+  <section class="dashboard-header mb-4">
+    <p class="dashboard-eyebrow mb-2">INSULIN TRAVEL CASE</p>
+    <h1 class="mb-2">Temperature dashboard</h1>
+    <p class="text-body-secondary mb-0">
+      Check the latest temperature recorded inside your case.
+    </p>
+  </section>
+
+  {% if latest_reading %}
+    {% set within_demo_range = 2 <= latest_reading.temperature <= 8 %}
+    <section class="dashboard-reading content-section p-4 p-md-5 mb-4"
+             aria-labelledby="latest-reading-heading">
+      <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-start gap-3">
+        <div>
+          <h2 id="latest-reading-heading" class="h5 mb-3">Latest reading</h2>
+          <p class="dashboard-temperature mb-2">
+            {{ "%.2f"|format(latest_reading.temperature) }}<span>°C</span>
+          </p>
+          <p class="text-body-secondary mb-0">
+            Recorded {{ latest_reading.timestamp.strftime('%d %b %Y at %H:%M:%S') }}
+          </p>
         </div>
+        <p class="dashboard-status mb-0 {{ 'dashboard-status--ok' if within_demo_range else 'dashboard-status--check' }}"
+           role="status">
+          <span class="dashboard-status-indicator" aria-hidden="true"></span>
+          {{ "Within range" if within_demo_range else "Check temperature" }}
+        </p>
       </div>
-    </article>
-  {% endfor %}
+    </section>
+  {% else %}
+    <section class="content-section p-4 p-md-5 mb-4" aria-labelledby="no-reading-heading">
+      <h2 id="no-reading-heading" class="h5 mb-2">No readings yet</h2>
+      <p class="text-body-secondary mb-0">
+        Temperature data will appear here when the sensor sends its first reading.
+      </p>
+    </section>
+  {% endif %}
+
+  <a class="btn btn-primary" href="{{ url_for('sensor_readings') }}">View all readings</a>
 {% endblock content %}

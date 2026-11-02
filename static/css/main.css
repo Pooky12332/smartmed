@@ -94,6 +94,77 @@ button:focus-visible {
   border-color: var(--color-border-light);
 }
 
+/* Temperature Dashboard */
+.dashboard-header {
+  padding-top: 1rem;
+}
+
+.dashboard-eyebrow {
+  color: var(--color-steel);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.dashboard-temperature {
+  color: var(--color-text-heading);
+  font-family: var(--font-heading);
+  font-size: clamp(3rem, 10vw, 5rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dashboard-temperature span {
+  margin-left: 0.35rem;
+  font-size: 0.45em;
+  font-weight: 500;
+}
+
+.dashboard-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dashboard-status--ok {
+  color: #176b3a;
+  background: #e8f5ec;
+}
+
+.dashboard-status--check {
+  color: #8a4b08;
+  background: #fff3dc;
+}
+
+.dashboard-status-indicator {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dashboard-range-note {
+  max-width: 46rem;
+}
+
+[data-bs-theme="dark"] .dashboard-eyebrow {
+  color: #8aadc8;
+}
+
+[data-bs-theme="dark"] .dashboard-status--ok {
+  color: #a7e2b9;
+  background: #193b28;
+}
+
+[data-bs-theme="dark"] .dashboard-status--check {
+  color: #ffd18c;
+  background: #493316;
+}
+
 /* Articles */
 .article-title {
   color: var(--color-text-heading);
