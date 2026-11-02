@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request, HTTPException, status, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -14,14 +16,21 @@ import asyncio
 ## TEMP FAKE IMPORT 
 from fake_sensor import sensor_simulator, generate_reading
 
+BASE_DIR = Path(__file__).resolve().parent
+MEDIA_DIR = BASE_DIR / "media"
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
+
+MEDIA_DIR.mkdir(exist_ok=True)
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-app.mount("/media", StaticFiles(directory="media"), name="media")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 ## Events ##
