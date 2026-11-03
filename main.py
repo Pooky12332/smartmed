@@ -43,15 +43,39 @@ async def shutdown():
 # Home page
 @app.get("/", include_in_schema=False, name="home")
 def home(request: Request, db: Session = Depends(get_db)):
-    latest_reading = (db.query(models.Reading)
-        .order_by(desc(models.Reading.timestamp))
-        .first()
+    ## Get the current readings
+    readings = (db.query(models.Reading)
+        .order_by(models.Reading.timestamp.asc())
+        .all()
     )
+
+    ## Get the latest of them readings, if we were able to get readings in the first place
+    latest_reading = readings[-1] if readings else None
+
+    ## Create our sensor
+    sensor = None
+
+    if latest_reading:
+        sensor = db.query(models.Sensor).filter(models.Sensor.id == latest_reading.sensor_id).first()
+
+    ## Setting up the data for the chart
+    chart_labels = [
+        reading.timestamp.strftime("%H:%M:%S %d/%m/%Y")
+        for reading in readings
+    ]
+
+    chart_values = [reading.temperature for reading in readings]
 
     return templates.TemplateResponse(
         request,
         "home.html",
-        context={"latest_reading": latest_reading}
+        context={
+            "sensor": sensor,
+            "readings": readings,
+            "latest_reading": latest_reading,
+            "chart_labels": chart_labels,
+            "chart_values": chart_values
+        }
     )
 
 
