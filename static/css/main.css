@@ -136,8 +136,8 @@ button:focus-visible {
 }
 
 .dashboard-status--check {
-  color: #8a4b08;
-  background: #fff3dc;
+  color: #8c3d46;
+  background: #f9e9eb;
 }
 
 .dashboard-status-indicator {
@@ -161,8 +161,8 @@ button:focus-visible {
 }
 
 [data-bs-theme="dark"] .dashboard-status--check {
-  color: #ffd18c;
-  background: #493316;
+  color: #f0aab1;
+  background: #43272b;
 }
 
 /* Articles */
