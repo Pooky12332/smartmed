@@ -3,13 +3,15 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from typing import Annotated
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_
 from sqlalchemy.orm import Session
 from database import Base, engine, get_db, SessionLocal
-from schemas import ReadingCreate, ReadingResponse, ReadingUpdate, UserCreate, UserResponse, UserUpdate
-from auth import hash_password
+from schemas import ReadingCreate, ReadingResponse, ReadingUpdate, UserCreate, UserResponse, UserUpdate, Token, HighTemperatureAlertResponse, LowTemperatureAlertResponse
+from auth import hash_password, verify_password, create_access_token, DUMMY_HASH
+from temperature_limits import check_temperature_limits
 import models
 import asyncio
 from datetime import datetime
@@ -150,6 +152,7 @@ def create_reading(reading: ReadingCreate, db: Annotated[Session, Depends(get_db
         temperature = reading.temperature,
         timestamp = reading.timestamp or datetime.utcnow()
     )
+    check_temperature_limits(new_reading)
     db.add(new_reading)
     db.commit()
     db.refresh(new_reading)
@@ -177,6 +180,7 @@ def update_reading_full(
     reading.temperature = reading_data.temperature
     if reading_data.timestamp is not None:
         reading.timestamp = reading_data.timestamp
+    check_temperature_limits(reading)
     db.commit()
     db.refresh(reading)
     return reading
@@ -197,6 +201,7 @@ def update_reading_partial(
     update_data = reading_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(reading, field, value)
+    check_temperature_limits(reading)
     db.commit()
     db.refresh(reading)
     return reading
@@ -215,15 +220,62 @@ def delete_reading(reading_id: int, db: Annotated[Session, Depends(get_db)]):
 
 
 
+# Get readings that went above the safe limit
+@app.get("/api/alerts/high", response_model=list[HighTemperatureAlertResponse])
+def get_high_temperature_alerts(db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.HighTemperatureAlert).order_by(desc(models.HighTemperatureAlert.timestamp)))
+    return result.scalars().all()
+
+
+
+# Get readings that went below the safe limit
+@app.get("/api/alerts/low", response_model=list[LowTemperatureAlertResponse])
+def get_low_temperature_alerts(db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.LowTemperatureAlert).order_by(desc(models.LowTemperatureAlert.timestamp)))
+    return result.scalars().all()
+
+
+
+# Delete a high temperature alert (the reading is kept)
+@app.delete("/api/alerts/high/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_high_temperature_alert(alert_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.HighTemperatureAlert).where(models.HighTemperatureAlert.id == alert_id))
+    alert = result.scalars().first()
+    if not alert:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    db.delete(alert)
+    db.commit()
+
+
+
+# Delete a low temperature alert (the reading is kept)
+@app.delete("/api/alerts/low/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_low_temperature_alert(alert_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.LowTemperatureAlert).where(models.LowTemperatureAlert.id == alert_id))
+    alert = result.scalars().first()
+    if not alert:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    db.delete(alert)
+    db.commit()
+
+
+
 # Create a user account
 @app.post("/api/user", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.User).where(models.User.email == user.email))
-    existing_email = result.scalars().first()
-    if existing_email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
+    if user.username is not None:
+        result = db.execute(select(models.User).where(models.User.username == user.username))
+        existing_user = result.scalars().first()
+        if existing_user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
+    if user.email is not None:
+        result = db.execute(select(models.User).where(models.User.email == user.email))
+        existing_email = result.scalars().first()
+        if existing_email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
     new_user = models.User(
         full_name = user.full_name,
+        username = user.username,
         email = user.email,
         password_hash = hash_password(user.password),
         phone_number = user.phone_number,
@@ -233,6 +285,30 @@ def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
     db.commit()
     db.refresh(new_user)
     return new_user
+
+
+
+# Log in with an email or a username
+@app.post("/api/login", response_model=Token)
+def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Annotated[Session, Depends(get_db)]
+):
+    login_name = form_data.username.strip().lower()
+    result = db.execute(select(models.User).where(
+        or_(models.User.email == login_name, models.User.username == login_name)
+    ))
+    user = result.scalars().first()
+    # The password is always checked, and the error never says which part was wrong,
+    # so nobody can use this to find out which emails or usernames have an account
+    password_hash = user.password_hash if user else DUMMY_HASH
+    if not verify_password(form_data.password, password_hash) or not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email/username or password",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    return {"access_token": create_access_token(user.id), "token_type": "bearer"}
 
 
 
@@ -258,6 +334,16 @@ def update_user(
     user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    # An account uses an email or a username, so only the one it signed up with can be changed
+    if user_data.username is not None and user.email is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This account uses an email, not a username")
+    if user_data.email is not None and user.username is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This account uses a username, not an email")
+    if user_data.username is not None and user_data.username != user.username:
+        result = db.execute(select(models.User).where(models.User.username == user_data.username))
+        existing_user = result.scalars().first()
+        if existing_user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
     if user_data.email is not None and user_data.email != user.email:
         result = db.execute(select(models.User).where(models.User.email == user_data.email))
         existing_email = result.scalars().first()
@@ -265,6 +351,8 @@ def update_user(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
     if user_data.full_name is not None:
         user.full_name = user_data.full_name
+    if user_data.username is not None:
+        user.username = user_data.username
     if user_data.email is not None:
         user.email = user_data.email
     if user_data.phone_number is not None:

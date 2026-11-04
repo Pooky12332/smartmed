@@ -4,6 +4,7 @@ from datetime import datetime
 
 from database import SessionLocal
 import models
+from temperature_limits import check_temperature_limits
 
 ## This is another temp file just to provide a fake sensor to call
 ## We will get rid of this and replae it with the real sensors
@@ -39,6 +40,8 @@ def generate_reading():
             temperature=round(temperature, 2),
             timestamp=datetime.utcnow()
         )
+
+        check_temperature_limits(reading)
 
         db.add(reading)
         db.commit()
