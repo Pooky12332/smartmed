@@ -10,8 +10,11 @@ from typing import Annotated
 from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 from database import Base, engine, get_db, SessionLocal
+from schemas import ReadingCreate, ReadingResponse, ReadingUpdate, UserCreate, UserResponse, UserUpdate
+from auth import hash_password
 import models
 import asyncio
+from datetime import datetime
 
 ## TEMP FAKE IMPORT 
 from fake_sensor import sensor_simulator, generate_reading
@@ -52,15 +55,39 @@ async def shutdown():
 # Home page
 @app.get("/", include_in_schema=False, name="home")
 def home(request: Request, db: Session = Depends(get_db)):
-    latest_reading = (db.query(models.Reading)
-        .order_by(desc(models.Reading.timestamp))
-        .first()
+    ## Get the current readings
+    readings = (db.query(models.Reading)
+        .order_by(models.Reading.timestamp.asc())
+        .all()
     )
+
+    ## Get the latest of them readings, if we were able to get readings in the first place
+    latest_reading = readings[-1] if readings else None
+
+    ## Create our sensor
+    sensor = None
+
+    if latest_reading:
+        sensor = db.query(models.Sensor).filter(models.Sensor.id == latest_reading.sensor_id).first()
+
+    ## Setting up the data for the chart
+    chart_labels = [
+        reading.timestamp.strftime("%H:%M:%S %d/%m/%Y")
+        for reading in readings
+    ]
+
+    chart_values = [reading.temperature for reading in readings]
 
     return templates.TemplateResponse(
         request,
         "home.html",
-        context={"latest_reading": latest_reading}
+        context={
+            "sensor": sensor,
+            "readings": readings,
+            "latest_reading": latest_reading,
+            "chart_labels": chart_labels,
+            "chart_values": chart_values
+        }
     )
 
 
@@ -70,7 +97,7 @@ def home(request: Request, db: Session = Depends(get_db)):
 def get_readings(request: Request, db: Session = Depends(get_db)):
     readings = (db.query(models.Reading)
         .order_by(desc(models.Reading.timestamp))
-        .limit(50)
+        .limit(75)
         .all()
     )
 
@@ -118,6 +145,158 @@ def get_sensor_readings_by_id(sensor_id: int, db: Session = Depends(get_db)):
         .limit(100)
         .all()
     )
+
+
+# Add a reading (pass a timestamp to fill in a reading that was missed)
+@app.post("/api/readings", response_model=ReadingResponse, status_code=status.HTTP_201_CREATED)
+def create_reading(reading: ReadingCreate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Sensor).where(models.Sensor.id == reading.sensor_id))
+    sensor = result.scalars().first()
+    if not sensor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sensor not found")
+    new_reading = models.Reading(
+        sensor_id = reading.sensor_id,
+        temperature = reading.temperature,
+        timestamp = reading.timestamp or datetime.utcnow()
+    )
+    db.add(new_reading)
+    db.commit()
+    db.refresh(new_reading)
+    return new_reading
+
+
+
+# Update a reading (all fields)
+@app.put("/api/readings/{reading_id}", response_model=ReadingResponse)
+def update_reading_full(
+    reading_id: int,
+    reading_data: ReadingCreate,
+    db: Annotated[Session, Depends(get_db)]
+):
+    result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
+    reading = result.scalars().first()
+    if not reading:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading not found")
+    if reading_data.sensor_id != reading.sensor_id:
+        result = db.execute(select(models.Sensor).where(models.Sensor.id == reading_data.sensor_id))
+        sensor = result.scalars().first()
+        if not sensor:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sensor not found")
+    reading.sensor_id = reading_data.sensor_id
+    reading.temperature = reading_data.temperature
+    if reading_data.timestamp is not None:
+        reading.timestamp = reading_data.timestamp
+    db.commit()
+    db.refresh(reading)
+    return reading
+
+
+
+# Update a reading (only the fields sent)
+@app.patch("/api/readings/{reading_id}", response_model=ReadingResponse)
+def update_reading_partial(
+    reading_id: int,
+    reading_data: ReadingUpdate,
+    db: Annotated[Session, Depends(get_db)]
+):
+    result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
+    reading = result.scalars().first()
+    if not reading:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading not found")
+    update_data = reading_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(reading, field, value)
+    db.commit()
+    db.refresh(reading)
+    return reading
+
+
+
+# Delete a reading
+@app.delete("/api/readings/{reading_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_reading(reading_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
+    reading = result.scalars().first()
+    if not reading:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading not found")
+    db.delete(reading)
+    db.commit()
+
+
+
+# Create a user account
+@app.post("/api/user", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.User).where(models.User.email == user.email))
+    existing_email = result.scalars().first()
+    if existing_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
+    new_user = models.User(
+        full_name = user.full_name,
+        email = user.email,
+        password_hash = hash_password(user.password),
+        phone_number = user.phone_number,
+        diabetes_type = user.diabetes_type.value
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+
+# Get a user account
+@app.get("/api/user/{user_id}", response_model=UserResponse)
+def get_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalars().first()
+    if user:
+        return user
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+
+
+# Update a user account (only the fields sent)
+@app.patch("/api/user/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: int,
+    user_data: UserUpdate,
+    db: Annotated[Session, Depends(get_db)]
+):
+    result = db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user_data.email is not None and user_data.email != user.email:
+        result = db.execute(select(models.User).where(models.User.email == user_data.email))
+        existing_email = result.scalars().first()
+        if existing_email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
+    if user_data.full_name is not None:
+        user.full_name = user_data.full_name
+    if user_data.email is not None:
+        user.email = user_data.email
+    if user_data.phone_number is not None:
+        user.phone_number = user_data.phone_number
+    if user_data.diabetes_type is not None:
+        user.diabetes_type = user_data.diabetes_type.value
+    if user_data.password is not None:
+        user.password_hash = hash_password(user_data.password)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+
+# Delete a user account
+@app.delete("/api/user/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    db.delete(user)
+    db.commit()
 
 
 

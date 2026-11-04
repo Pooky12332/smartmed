@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Float, DateTime, String, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 from database import Base
 
@@ -23,3 +23,15 @@ class Reading(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     sensor = relationship("Sensor", back_populates="readings")
+
+
+## Users
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    full_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    diabetes_type: Mapped[str] = mapped_column(String(20), nullable=False)
