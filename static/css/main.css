@@ -17,6 +17,13 @@
   --color-border: #d7e2e0;
   --color-border-light: #e3ecea;
 
+  /* Type scale */
+  --text-heading-xl: clamp(1.9rem, 4vw, 2.25rem);
+  --text-heading-lg: 1.5rem;
+  --text-heading-md: 1.2rem;
+  --text-body-secondary: 1rem;
+  --text-temperature: clamp(3.5rem, 11vw, 5.5rem);
+
   /* Spacing */
   --spacing-xl: 5rem;
 
@@ -30,6 +37,7 @@ body {
   font-family: var(--font-body);
   background: var(--color-bg-body);
   color: var(--color-text-primary);
+  line-height: 1.55;
 }
 
 main {
@@ -44,6 +52,34 @@ h5,
 h6 {
   font-family: var(--font-heading);
   color: var(--color-text-heading);
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: var(--text-heading-xl);
+  font-weight: 700;
+}
+
+h2 {
+  font-size: var(--text-heading-lg);
+  font-weight: 700;
+}
+
+h3,
+h2.h5 {
+  font-size: var(--text-heading-md);
+  font-weight: 650;
+}
+
+.dashboard-header > p:not(.dashboard-eyebrow),
+.dashboard-reading .text-body-secondary,
+.readings-page > div:first-child p:not(.dashboard-eyebrow) {
+  font-size: var(--text-body-secondary);
+  line-height: 1.55;
+}
+
+.readings-page tbody td.fw-semibold {
+  font-size: 1.05rem;
 }
 
 .navbar-brand {
@@ -152,8 +188,9 @@ button:focus-visible {
 .dashboard-temperature {
   color: var(--color-text-heading);
   font-family: var(--font-heading);
-  font-size: clamp(3rem, 10vw, 5rem);
+  font-size: var(--text-temperature);
   font-weight: 700;
+  letter-spacing: -0.045em;
   line-height: 1;
 }
 
