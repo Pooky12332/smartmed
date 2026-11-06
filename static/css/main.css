@@ -231,6 +231,11 @@ button:focus-visible {
   max-width: 46rem;
 }
 
+.temperature-chart-container {
+  position: relative;
+  height: 20rem;
+}
+
 [data-bs-theme="dark"] .dashboard-eyebrow {
   color: #91c4c1;
 }

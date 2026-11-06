@@ -57,5 +57,87 @@
     </section>
   {% endif %}
 
+  <section class="temperature-history content-section p-4 p-md-5 mb-4"
+           aria-labelledby="temperature-history-heading">
+    <h2 id="temperature-history-heading" class="h5 mb-3">Temperature history</h2>
+    {% if chart_labels %}
+      <div class="temperature-chart-container">
+        <canvas id="temperature-history-chart"
+                role="img"
+                aria-label="Recorded temperatures over time, including minimum and maximum demo limits"></canvas>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+      <script>
+        const chartLabels = {{ chart_labels | tojson }};
+        const chartValues = {{ chart_values | tojson }};
+        const minimumTemperature = {{ temp_min_c | tojson }};
+        const maximumTemperature = {{ temp_max_c | tojson }};
+
+        new Chart(document.getElementById('temperature-history-chart'), {
+          type: 'line',
+          data: {
+            labels: chartLabels,
+            datasets: [
+              {
+                label: 'Temperature (°C)',
+                data: chartValues,
+                borderColor: '#3b7375',
+                backgroundColor: 'rgba(59, 115, 117, 0.12)',
+                borderWidth: 2,
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                tension: 0.25
+              },
+              {
+                label: `Minimum limit (${minimumTemperature}°C)`,
+                data: chartLabels.map(() => minimumTemperature),
+                borderColor: '#d99a45',
+                borderDash: [6, 4],
+                borderWidth: 1.5,
+                pointRadius: 0
+              },
+              {
+                label: `Maximum limit (${maximumTemperature}°C)`,
+                data: chartLabels.map(() => maximumTemperature),
+                borderColor: '#a85b5b',
+                borderDash: [6, 4],
+                borderWidth: 1.5,
+                pointRadius: 0
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false
+            },
+            scales: {
+              y: {
+                title: {
+                  display: true,
+                  text: 'Temperature (°C)'
+                },
+                suggestedMin: minimumTemperature,
+                suggestedMax: maximumTemperature
+              },
+              x: {
+                ticks: {
+                  maxRotation: 45,
+                  minRotation: 0
+                }
+              }
+            }
+          }
+        });
+      </script>
+    {% else %}
+      <p class="text-body-secondary mb-0">
+        The chart will appear here after the first temperature reading.
+      </p>
+    {% endif %}
+  </section>
+
   <a class="btn btn-primary" href="{{ url_for('sensor_readings') }}">View all readings</a>
 {% endblock content %}
