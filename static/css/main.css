@@ -106,6 +106,22 @@ button:focus-visible {
   letter-spacing: 0.12em;
 }
 
+.data-source-label {
+  display: inline-block;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  color: var(--color-steel);
+  background: rgba(59, 115, 117, 0.08);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+[data-bs-theme="dark"] .data-source-label {
+  color: #a4d2cf;
+  background: rgba(145, 196, 193, 0.12);
+}
+
 .dashboard-temperature {
   color: var(--color-text-heading);
   font-family: var(--font-heading);

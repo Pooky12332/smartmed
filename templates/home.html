@@ -7,10 +7,13 @@
     <p class="text-body-secondary mb-0">
       Check the latest temperature recorded inside your case.
     </p>
+    <span class="data-source-label mt-3">Simulated data · Demo only</span>
   </section>
 
   {% if latest_reading %}
-    {% set within_demo_range = 2 <= latest_reading.temperature <= 8 %}
+    {% set temperature_too_low = latest_reading.temperature < temp_min_c %}
+    {% set temperature_too_high = latest_reading.temperature > temp_max_c %}
+    {% set within_demo_range = not temperature_too_low and not temperature_too_high %}
     <section class="dashboard-reading content-section p-4 p-md-5 mb-4"
              aria-labelledby="latest-reading-heading">
       <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-start gap-3">
@@ -26,9 +29,24 @@
         <p class="dashboard-status mb-0 {{ 'dashboard-status--ok' if within_demo_range else 'dashboard-status--check' }}"
            role="status">
           <span class="dashboard-status-indicator" aria-hidden="true"></span>
-          {{ "Within range" if within_demo_range else "Check temperature" }}
+          {% if temperature_too_low %}
+            Temperature too low
+          {% elif temperature_too_high %}
+            Temperature too high
+          {% else %}
+            Within range
+          {% endif %}
         </p>
       </div>
+      <p class="dashboard-range-note small text-body-secondary mt-3 mb-0">
+        {% if temperature_too_low %}
+          Minimum demo limit: {{ "%.0f"|format(temp_min_c) }}°C
+        {% elif temperature_too_high %}
+          Maximum demo limit: {{ "%.0f"|format(temp_max_c) }}°C
+        {% else %}
+          Demo range: {{ "%.0f"|format(temp_min_c) }}–{{ "%.0f"|format(temp_max_c) }}°C
+        {% endif %}
+      </p>
     </section>
   {% else %}
     <section class="content-section p-4 p-md-5 mb-4" aria-labelledby="no-reading-heading">

@@ -19,6 +19,9 @@ from datetime import datetime
 ## TEMP FAKE IMPORT 
 from fake_sensor import sensor_simulator, generate_reading
 
+DEMO_TEMP_MIN_C = 2.0
+DEMO_TEMP_MAX_C = 8.0
+
 BASE_DIR = Path(__file__).resolve().parent
 MEDIA_DIR = BASE_DIR / "media"
 STATIC_DIR = BASE_DIR / "static"
@@ -85,6 +88,8 @@ def home(request: Request, db: Session = Depends(get_db)):
             "sensor": sensor,
             "readings": readings,
             "latest_reading": latest_reading,
+            "temp_min_c": DEMO_TEMP_MIN_C,
+            "temp_max_c": DEMO_TEMP_MAX_C,
             "chart_labels": chart_labels,
             "chart_values": chart_values
         }
