@@ -73,7 +73,7 @@
         const minimumTemperature = {{ temp_min_c | tojson }};
         const maximumTemperature = {{ temp_max_c | tojson }};
 
-        new Chart(document.getElementById('temperature-history-chart'), {
+        const temperatureChart = new Chart(document.getElementById('temperature-history-chart'), {
           type: 'line',
           data: {
             labels: chartLabels,
@@ -120,16 +120,53 @@
                   text: 'Temperature (°C)'
                 },
                 suggestedMin: minimumTemperature,
-                suggestedMax: maximumTemperature
+                suggestedMax: maximumTemperature,
+                grid: {
+                  color: 'rgba(48, 59, 60, 0.1)'
+                }
               },
               x: {
                 ticks: {
                   maxRotation: 45,
                   minRotation: 0
+                },
+                grid: {
+                  display: false
                 }
               }
             }
           }
+        });
+
+        const updateChartTheme = () => {
+          const chartStyles = getComputedStyle(document.documentElement);
+          const chartText = chartStyles.getPropertyValue('--chart-text').trim();
+          const chartGrid = chartStyles.getPropertyValue('--chart-grid').trim();
+
+          temperatureChart.data.datasets[0].borderColor =
+            chartStyles.getPropertyValue('--chart-line').trim();
+          temperatureChart.data.datasets[0].backgroundColor =
+            chartStyles.getPropertyValue('--chart-fill').trim();
+          temperatureChart.data.datasets[1].borderColor =
+            chartStyles.getPropertyValue('--chart-min').trim();
+          temperatureChart.data.datasets[2].borderColor =
+            chartStyles.getPropertyValue('--chart-max').trim();
+
+          Object.values(temperatureChart.options.scales).forEach(scale => {
+            scale.ticks.color = chartText;
+            scale.grid.color = chartGrid;
+            if (scale.title) {
+              scale.title.color = chartText;
+            }
+          });
+
+          temperatureChart.update('none');
+        };
+
+        updateChartTheme();
+        new MutationObserver(updateChartTheme).observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-bs-theme']
         });
       </script>
     {% else %}

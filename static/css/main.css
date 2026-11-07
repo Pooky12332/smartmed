@@ -16,6 +16,12 @@
   --color-link-hover: #2f6f72;
   --color-border: #d7e2e0;
   --color-border-light: #e3ecea;
+  --chart-text: #526061;
+  --chart-grid: rgba(48, 59, 60, 0.12);
+  --chart-line: #3b7375;
+  --chart-fill: rgba(59, 115, 117, 0.12);
+  --chart-min: #a66b19;
+  --chart-max: #a64e52;
 
   /* Type scale */
   --text-heading-xl: clamp(1.9rem, 4vw, 2.25rem);
@@ -41,7 +47,13 @@ body {
 }
 
 main {
-  padding-top: var(--spacing-xl);
+  width: 100%;
+  padding-top: 6.5rem;
+  padding-bottom: 3rem;
+}
+
+.app-main {
+  max-width: 1200px;
 }
 
 h1,
@@ -58,6 +70,7 @@ h6 {
 h1 {
   font-size: var(--text-heading-xl);
   font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 h2 {
@@ -78,12 +91,39 @@ h2.h5 {
   line-height: 1.55;
 }
 
+.dashboard-reading {
+  border-top: 3px solid var(--color-steel);
+}
+
 .readings-page tbody td.fw-semibold {
   font-size: 1.05rem;
 }
 
+.readings-table-header {
+  --bs-table-bg: var(--color-steel);
+  --bs-table-color: #ffffff;
+  --bs-table-border-color: rgba(255, 255, 255, 0.12);
+}
+
+.table {
+  --bs-table-color: var(--color-text-primary);
+  --bs-table-bg: var(--color-bg-content);
+  --bs-table-border-color: var(--color-border-light);
+  --bs-table-striped-bg: rgba(59, 115, 117, 0.045);
+  --bs-table-hover-bg: rgba(59, 115, 117, 0.08);
+}
+
+.readings-page .badge {
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 700;
+}
+
 .navbar-brand {
   font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
 }
 
 a {
@@ -99,6 +139,19 @@ button:focus-visible {
 /* Headers and Navigation */
 .bg-steel {
   background-color: var(--color-steel);
+  box-shadow: 0 2px 12px rgba(20, 45, 46, 0.18);
+}
+
+.site-header .navbar {
+  min-height: 4.25rem;
+}
+
+.site-header .navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.site-header .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.2);
 }
 
 .site-header .navbar-nav .nav-link {
@@ -107,15 +160,16 @@ button:focus-visible {
 }
 
 .main-nav-links {
-  gap: 0.35rem;
+  gap: 0.45rem;
 }
 
 .main-nav-links .nav-link {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  border-radius: 0.5rem;
-  padding-inline: 0.85rem;
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.9rem;
+  transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 .nav-icon {
@@ -135,7 +189,16 @@ button:focus-visible {
   font-weight: 600;
 }
 
+.site-header .navbar-nav > .btn {
+  border-radius: 0.6rem;
+  font-weight: 700;
+}
+
 @media (max-width: 767.98px) {
+  .site-header .navbar-collapse {
+    padding-bottom: 0.75rem;
+  }
+
   .main-nav-links {
     gap: 0.15rem;
     padding-block: 0.5rem;
@@ -146,20 +209,20 @@ button:focus-visible {
 .content-section {
   background: var(--color-bg-content);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05);
-  transition: box-shadow 0.15s ease, transform 0.15s ease,
-    border-color 0.15s ease;
+  border-radius: 0.9rem;
+  box-shadow: 0 4px 16px rgba(15, 45, 46, 0.045);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .content-section:hover {
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 7px 22px rgba(15, 45, 46, 0.08);
   border-color: var(--color-border-light);
 }
 
 /* Temperature Dashboard */
 .dashboard-header {
-  padding-top: 1rem;
+  padding-top: 0.5rem;
+  margin-bottom: 1.75rem !important;
 }
 
 .dashboard-eyebrow {
@@ -173,7 +236,7 @@ button:focus-visible {
   display: inline-block;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  padding: 0.3rem 0.65rem;
+  padding: 0.35rem 0.7rem;
   color: var(--color-steel);
   background: rgba(59, 115, 117, 0.08);
   font-size: 0.8rem;
@@ -188,7 +251,7 @@ button:focus-visible {
 .dashboard-temperature {
   color: var(--color-text-heading);
   font-family: var(--font-heading);
-  font-size: var(--text-temperature);
+  font-size: clamp(3.25rem, 9vw, 5rem);
   font-weight: 700;
   letter-spacing: -0.045em;
   line-height: 1;
@@ -205,7 +268,7 @@ button:focus-visible {
   align-items: center;
   gap: 0.55rem;
   border-radius: 999px;
-  padding: 0.55rem 0.85rem;
+  padding: 0.6rem 0.9rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -233,7 +296,19 @@ button:focus-visible {
 
 .temperature-chart-container {
   position: relative;
-  height: 20rem;
+  width: 100%;
+  height: clamp(17rem, 34vw, 24rem);
+}
+
+.temperature-history h2 {
+  margin-bottom: 1.25rem !important;
+}
+
+.btn {
+  border-radius: 0.6rem;
+  font-weight: 700;
+  transition: color 0.15s ease, background-color 0.15s ease,
+    border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 [data-bs-theme="dark"] .dashboard-eyebrow {
@@ -426,14 +501,59 @@ a.article-title:focus {
   --color-steel: #315f61;
   --color-border: #3a4949;
   --color-border-light: #435353;
+  --chart-text: #d3dfde;
+  --chart-grid: rgba(211, 223, 222, 0.16);
+  --chart-line: #91c4c1;
+  --chart-fill: rgba(145, 196, 193, 0.12);
+  --chart-min: #f0bf70;
+  --chart-max: #e7959d;
 }
 
 [data-bs-theme="dark"] .content-section {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
+[data-bs-theme="dark"] .content-section:hover {
+  border-color: #526565;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+[data-bs-theme="dark"] .readings-table-header {
+  --bs-table-bg: #315f61;
+  --bs-table-color: #f3f8f7;
+  --bs-table-border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .table {
+  --bs-table-striped-bg: rgba(145, 196, 193, 0.055);
+  --bs-table-hover-bg: rgba(145, 196, 193, 0.1);
+}
+
 [data-bs-theme="dark"] article.content-section:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 575.98px) {
+  main {
+    padding-top: 5.75rem;
+    padding-bottom: 2rem;
+  }
+
+  .dashboard-header {
+    padding-top: 0.25rem;
+  }
+
+  .dashboard-status {
+    white-space: normal;
+  }
+
+  .temperature-chart-container {
+    height: 17rem;
+  }
+
+  .readings-page .content-section {
+    border-radius: 0.7rem;
+  }
 }
 
 /* Custom Modal Colors */
