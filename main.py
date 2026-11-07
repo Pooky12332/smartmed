@@ -18,13 +18,16 @@ import models
 import asyncio
 from datetime import datetime
 
-## TEMP FAKE IMPORT 
-from fake_sensor import sensor_simulator, generate_reading
+## REAL SENSOR IMPORT
+from sensor import read_and_save, shutdown as shutdown_sensor
 
 BASE_DIR = Path(__file__).resolve().parent
 MEDIA_DIR = BASE_DIR / "media"
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
+
+# How often we ask the real sensor for a reading (seconds)
+SENSOR_POLL_SECONDS = 5
 
 MEDIA_DIR.mkdir(exist_ok=True)
 
@@ -41,12 +44,26 @@ templates.env.globals["MIN_TEMPERATURE"] = MIN_TEMPERATURE
 templates.env.globals["MAX_TEMPERATURE"] = MAX_TEMPERATURE
 
 
+## Sensor loop ##
+# Keeps grabbing data from the real sensor and saving it so the front end can show it
+async def sensor_loop():
+    while True:
+        try:
+            # We send the read_and_save to a diffrent thread
+            await asyncio.to_thread(read_and_save)
+
+        except Exception as e:
+            print(f"[!] Sensor loop error: {e}")
+
+        await asyncio.sleep(SENSOR_POLL_SECONDS)
+
+
 ## Events ##
 # Startup
 @app.on_event("startup")
 async def startup():
     # We define what tasks we want ran
-    app.state.sensor_task = asyncio.create_task(sensor_simulator())
+    app.state.sensor_task = asyncio.create_task(sensor_loop())
 
 
 
@@ -54,6 +71,8 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     app.state.sensor_task.cancel()
+    # Release the GPIO pin used by the sensor
+    shutdown_sensor()
 
 
 ## Web Pages ##
@@ -152,18 +171,23 @@ def get_sensor_readings_by_id(sensor_id: int, db: Session = Depends(get_db)):
     )
 
 
+
+## Dealing With Readings ##
 # Add a reading (pass a timestamp to fill in a reading that was missed)
 @app.post("/api/readings", response_model=ReadingResponse, status_code=status.HTTP_201_CREATED)
 def create_reading(reading: ReadingCreate, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.Sensor).where(models.Sensor.id == reading.sensor_id))
     sensor = result.scalars().first()
+
     if not sensor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sensor not found")
+
     new_reading = models.Reading(
         sensor_id = reading.sensor_id,
         temperature = reading.temperature,
         timestamp = reading.timestamp or datetime.utcnow()
     )
+
     check_temperature_limits(new_reading)
     db.add(new_reading)
     db.commit()
@@ -174,48 +198,52 @@ def create_reading(reading: ReadingCreate, db: Annotated[Session, Depends(get_db
 
 # Update a reading (all fields)
 @app.put("/api/readings/{reading_id}", response_model=ReadingResponse)
-def update_reading_full(
-    reading_id: int,
-    reading_data: ReadingCreate,
-    db: Annotated[Session, Depends(get_db)]
-):
+def update_reading_full(reading_id: int, reading_data: ReadingCreate, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
     reading = result.scalars().first()
+
     if not reading:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading not found")
+
     if reading_data.sensor_id != reading.sensor_id:
         result = db.execute(select(models.Sensor).where(models.Sensor.id == reading_data.sensor_id))
         sensor = result.scalars().first()
+
         if not sensor:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sensor not found")
+
     reading.sensor_id = reading_data.sensor_id
     reading.temperature = reading_data.temperature
+
     if reading_data.timestamp is not None:
         reading.timestamp = reading_data.timestamp
+
     check_temperature_limits(reading)
     db.commit()
     db.refresh(reading)
+
     return reading
 
 
 
 # Update a reading (only the fields sent)
 @app.patch("/api/readings/{reading_id}", response_model=ReadingResponse)
-def update_reading_partial(
-    reading_id: int,
-    reading_data: ReadingUpdate,
-    db: Annotated[Session, Depends(get_db)]
-):
+def update_reading_partial(reading_id: int, reading_data: ReadingUpdate, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
     reading = result.scalars().first()
+
     if not reading:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading not found")
+    
     update_data = reading_data.model_dump(exclude_unset=True)
+    
     for field, value in update_data.items():
         setattr(reading, field, value)
+    
     check_temperature_limits(reading)
     db.commit()
     db.refresh(reading)
+    
     return reading
 
 
@@ -225,13 +253,15 @@ def update_reading_partial(
 def delete_reading(reading_id: int, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
     reading = result.scalars().first()
+
     if not reading:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading not found")
+
     db.delete(reading)
     db.commit()
 
 
-
+## Temp Limits ##
 # Get readings that went above the safe limit
 @app.get("/api/alerts/high", response_model=list[HighTemperatureAlertResponse])
 def get_high_temperature_alerts(db: Annotated[Session, Depends(get_db)]):
@@ -248,6 +278,7 @@ def get_low_temperature_alerts(db: Annotated[Session, Depends(get_db)]):
 
 
 
+## Deleting reading ##
 # Delete a high temperature alert (the reading is kept)
 @app.delete("/api/alerts/high/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_high_temperature_alert(alert_id: int, db: Annotated[Session, Depends(get_db)]):
@@ -388,14 +419,3 @@ def delete_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     db.delete(user)
     db.commit()
-
-
-
-## TEMP FUNCTIONS
-@app.post("/api/simulate")
-def simulate_readings():
-    generate_reading()
-
-    return {
-        "message": "Fake sensor readings generated successfully"
-    }
