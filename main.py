@@ -113,6 +113,103 @@ def get_readings(request: Request, db: Session = Depends(get_db)):
     )
 
 
+def build_temperature_alerts(readings):
+    alerts = []
+    current_alert = None
+    previous_state = "normal"
+
+    for reading in readings:
+        if reading.temperature < DEMO_TEMP_MIN_C:
+            state = "low"
+        elif reading.temperature > DEMO_TEMP_MAX_C:
+            state = "high"
+        else:
+            state = "normal"
+
+        if state == previous_state:
+            continue
+
+        if state == "normal":
+            if current_alert is not None:
+                current_alert["status"] = "Resolved"
+                current_alert["severity"] = "Warning"
+                current_alert = None
+
+                alerts.append({
+                    "reading_id": reading.id,
+                    "temperature": reading.temperature,
+                    "timestamp": reading.timestamp,
+                    "type": "Temperature returned to normal",
+                    "severity": "Resolved",
+                    "status": "Resolved",
+                    "message": (
+                        f"Temperature returned to the acceptable demo range "
+                        f"of {DEMO_TEMP_MIN_C:g}–{DEMO_TEMP_MAX_C:g}°C."
+                    ),
+                })
+        else:
+            if current_alert is not None:
+                current_alert["status"] = "Resolved"
+                current_alert["severity"] = "Warning"
+
+            if state == "high":
+                alert_type = "Temperature too high"
+                message = (
+                    f"{reading.temperature:.2f}°C is above the maximum demo "
+                    f"limit of {DEMO_TEMP_MAX_C:g}°C."
+                )
+            else:
+                alert_type = "Temperature too low"
+                message = (
+                    f"{reading.temperature:.2f}°C is below the minimum demo "
+                    f"limit of {DEMO_TEMP_MIN_C:g}°C."
+                )
+
+            current_alert = {
+                "reading_id": reading.id,
+                "temperature": reading.temperature,
+                "timestamp": reading.timestamp,
+                "type": alert_type,
+                "severity": "Critical",
+                "status": "Active",
+                "message": message,
+            }
+            alerts.append(current_alert)
+
+        previous_state = state
+
+    return alerts
+
+
+@app.get("/alerts", include_in_schema=False, name="alerts")
+def get_alerts(request: Request, db: Session = Depends(get_db)):
+    readings = (
+        db.query(models.Reading)
+        .order_by(models.Reading.timestamp.asc(), models.Reading.id.asc())
+        .all()
+    )
+    alerts = build_temperature_alerts(readings)
+    alerts.sort(
+        key=lambda alert: (alert["timestamp"], alert["reading_id"]),
+        reverse=True,
+    )
+
+    active_alerts = sum(alert["status"] == "Active" for alert in alerts)
+
+    return templates.TemplateResponse(
+        request,
+        "alerts.html",
+        context={
+            "alerts": alerts,
+            "total_alerts": len(alerts),
+            "active_alerts": active_alerts,
+            "resolved_alerts": len(alerts) - active_alerts,
+            "temp_min_c": DEMO_TEMP_MIN_C,
+            "temp_max_c": DEMO_TEMP_MAX_C,
+        },
+    )
+
+
 
 ## API Points ##
 # Readings endpoint
