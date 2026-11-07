@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, Float, DateTime, String, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 from database import Base
+from encryption import EncryptedString
 
 ## Primary
 class Sensor(Base):
@@ -32,12 +33,13 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    full_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Personal details are encrypted in the database (see encryption.py)
+    full_name: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     username: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
     email: Mapped[str | None] = mapped_column(String(320), unique=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
-    phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
-    diabetes_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    phone_number: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    diabetes_type: Mapped[str] = mapped_column(EncryptedString, nullable=False)
 
 
 
