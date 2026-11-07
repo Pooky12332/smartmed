@@ -12,7 +12,7 @@ from sqlalchemy import select, desc, or_
 from sqlalchemy.orm import Session
 from database import Base, engine, get_db, SessionLocal
 from schemas import ReadingCreate, ReadingResponse, ReadingUpdate, UserCreate, UserResponse, UserUpdate, Token, HighTemperatureAlertResponse, LowTemperatureAlertResponse
-from auth import hash_password, verify_password, create_access_token, DUMMY_HASH
+from auth import hash_password, verify_password, create_access_token, get_current_user, DUMMY_HASH
 from temperature_limits import check_temperature_limits, MIN_TEMPERATURE, MAX_TEMPERATURE
 import models
 import asyncio
@@ -173,9 +173,14 @@ def get_sensor_readings_by_id(sensor_id: int, db: Session = Depends(get_db)):
 
 
 ## Dealing With Readings ##
+# Adding, updating and deleting readings needs a login (current_user)
 # Add a reading (pass a timestamp to fill in a reading that was missed)
 @app.post("/api/readings", response_model=ReadingResponse, status_code=status.HTTP_201_CREATED)
-def create_reading(reading: ReadingCreate, db: Annotated[Session, Depends(get_db)]):
+def create_reading(
+    reading: ReadingCreate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
+):
     result = db.execute(select(models.Sensor).where(models.Sensor.id == reading.sensor_id))
     sensor = result.scalars().first()
 
@@ -198,7 +203,12 @@ def create_reading(reading: ReadingCreate, db: Annotated[Session, Depends(get_db
 
 # Update a reading (all fields)
 @app.put("/api/readings/{reading_id}", response_model=ReadingResponse)
-def update_reading_full(reading_id: int, reading_data: ReadingCreate, db: Annotated[Session, Depends(get_db)]):
+def update_reading_full(
+    reading_id: int,
+    reading_data: ReadingCreate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
+):
     result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
     reading = result.scalars().first()
 
@@ -228,7 +238,12 @@ def update_reading_full(reading_id: int, reading_data: ReadingCreate, db: Annota
 
 # Update a reading (only the fields sent)
 @app.patch("/api/readings/{reading_id}", response_model=ReadingResponse)
-def update_reading_partial(reading_id: int, reading_data: ReadingUpdate, db: Annotated[Session, Depends(get_db)]):
+def update_reading_partial(
+    reading_id: int,
+    reading_data: ReadingUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
+):
     result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
     reading = result.scalars().first()
 
@@ -250,7 +265,11 @@ def update_reading_partial(reading_id: int, reading_data: ReadingUpdate, db: Ann
 
 # Delete a reading
 @app.delete("/api/readings/{reading_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_reading(reading_id: int, db: Annotated[Session, Depends(get_db)]):
+def delete_reading(
+    reading_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
+):
     result = db.execute(select(models.Reading).where(models.Reading.id == reading_id))
     reading = result.scalars().first()
 
@@ -279,9 +298,14 @@ def get_low_temperature_alerts(db: Annotated[Session, Depends(get_db)]):
 
 
 ## Deleting reading ##
+# Deleting alerts needs a login (current_user)
 # Delete a high temperature alert (the reading is kept)
 @app.delete("/api/alerts/high/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_high_temperature_alert(alert_id: int, db: Annotated[Session, Depends(get_db)]):
+def delete_high_temperature_alert(
+    alert_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
+):
     result = db.execute(select(models.HighTemperatureAlert).where(models.HighTemperatureAlert.id == alert_id))
     alert = result.scalars().first()
     if not alert:
@@ -293,7 +317,11 @@ def delete_high_temperature_alert(alert_id: int, db: Annotated[Session, Depends(
 
 # Delete a low temperature alert (the reading is kept)
 @app.delete("/api/alerts/low/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_low_temperature_alert(alert_id: int, db: Annotated[Session, Depends(get_db)]):
+def delete_low_temperature_alert(
+    alert_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
+):
     result = db.execute(select(models.LowTemperatureAlert).where(models.LowTemperatureAlert.id == alert_id))
     alert = result.scalars().first()
     if not alert:
@@ -355,9 +383,15 @@ def login(
 
 
 
-# Get a user account
+# Get a user account (users can only see their own)
 @app.get("/api/user/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
+def get_user(
+    user_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
+):
+    if user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only view your own account")
     result = db.execute(select(models.User).where(models.User.id == user_id))
     user = result.scalars().first()
     if user:
@@ -366,13 +400,16 @@ def get_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
 
 
 
-# Update a user account (only the fields sent)
+# Update a user account (only the fields sent, and only your own account)
 @app.patch("/api/user/{user_id}", response_model=UserResponse)
 def update_user(
     user_id: int,
     user_data: UserUpdate,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
 ):
+    if user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only change your own account")
     result = db.execute(select(models.User).where(models.User.id == user_id))
     user = result.scalars().first()
     if not user:
@@ -410,9 +447,15 @@ def update_user(
 
 
 
-# Delete a user account
+# Delete a user account (only your own account)
 @app.delete("/api/user/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
+def delete_user(
+    user_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)]
+):
+    if user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own account")
     result = db.execute(select(models.User).where(models.User.id == user_id))
     user = result.scalars().first()
     if not user:
