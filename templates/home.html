@@ -10,7 +10,7 @@
   </section>
 
   {% if latest_reading %}
-    {% set within_demo_range = 2 <= latest_reading.temperature <= 8 %}
+    {% set within_demo_range = MIN_TEMPERATURE <= latest_reading.temperature <= MAX_TEMPERATURE %}
     <section class="dashboard-reading content-section p-4 p-md-5 mb-4"
              aria-labelledby="latest-reading-heading">
       <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-start gap-3">
