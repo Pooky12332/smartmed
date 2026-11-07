@@ -1,9 +1,9 @@
 
 import models
 
-## Safe storage range for insulin in °C
-MIN_TEMPERATURE = 2.0
-MAX_TEMPERATURE = 8.0
+## Safe range for insulin in the case in °C
+MIN_TEMPERATURE = 15.0
+MAX_TEMPERATURE = 30.0
 
 
 # Records an alert if a reading is outside the safe range.

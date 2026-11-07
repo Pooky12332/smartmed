@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from database import Base, engine, get_db, SessionLocal
 from schemas import ReadingCreate, ReadingResponse, ReadingUpdate, UserCreate, UserResponse, UserUpdate, Token, HighTemperatureAlertResponse, LowTemperatureAlertResponse
 from auth import hash_password, verify_password, create_access_token, DUMMY_HASH
-from temperature_limits import check_temperature_limits
+from temperature_limits import check_temperature_limits, MIN_TEMPERATURE, MAX_TEMPERATURE
 import models
 import asyncio
 from datetime import datetime
@@ -39,6 +39,9 @@ app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+# Lets every template use the same temperature limits as the alerts
+templates.env.globals["MIN_TEMPERATURE"] = MIN_TEMPERATURE
+templates.env.globals["MAX_TEMPERATURE"] = MAX_TEMPERATURE
 
 
 ## Sensor loop ##
