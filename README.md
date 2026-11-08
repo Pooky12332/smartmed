@@ -6,3 +6,4 @@ records temperature readings and makes them available through a web interface
 and API.
 
 
+https://github.com/Pooky12332/smartmed.git
