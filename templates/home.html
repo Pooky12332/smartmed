@@ -7,10 +7,13 @@
     <p class="text-body-secondary mb-0">
       Check the latest temperature recorded inside your case.
     </p>
+    <span class="data-source-label mt-3">Simulated data · Demo only</span>
   </section>
 
   {% if latest_reading %}
-    {% set within_demo_range = MIN_TEMPERATURE <= latest_reading.temperature <= MAX_TEMPERATURE %}
+    {% set temperature_too_low = latest_reading.temperature < temp_min_c %}
+    {% set temperature_too_high = latest_reading.temperature > temp_max_c %}
+    {% set within_demo_range = not temperature_too_low and not temperature_too_high %}
     <section class="dashboard-reading content-section p-4 p-md-5 mb-4"
              aria-labelledby="latest-reading-heading">
       <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-start gap-3">
@@ -26,9 +29,24 @@
         <p class="dashboard-status mb-0 {{ 'dashboard-status--ok' if within_demo_range else 'dashboard-status--check' }}"
            role="status">
           <span class="dashboard-status-indicator" aria-hidden="true"></span>
-          {{ "Within range" if within_demo_range else "Check temperature" }}
+          {% if temperature_too_low %}
+            Temperature too low
+          {% elif temperature_too_high %}
+            Temperature too high
+          {% else %}
+            Within range
+          {% endif %}
         </p>
       </div>
+      <p class="dashboard-range-note small text-body-secondary mt-3 mb-0">
+        {% if temperature_too_low %}
+          Minimum demo limit: {{ "%.0f"|format(temp_min_c) }}°C
+        {% elif temperature_too_high %}
+          Maximum demo limit: {{ "%.0f"|format(temp_max_c) }}°C
+        {% else %}
+          Demo range: {{ "%.0f"|format(temp_min_c) }}–{{ "%.0f"|format(temp_max_c) }}°C
+        {% endif %}
+      </p>
     </section>
   {% else %}
     <section class="content-section p-4 p-md-5 mb-4" aria-labelledby="no-reading-heading">
@@ -38,6 +56,125 @@
       </p>
     </section>
   {% endif %}
+
+  <section class="temperature-history content-section p-4 p-md-5 mb-4"
+           aria-labelledby="temperature-history-heading">
+    <h2 id="temperature-history-heading" class="h5 mb-3">Temperature history</h2>
+    {% if chart_labels %}
+      <div class="temperature-chart-container">
+        <canvas id="temperature-history-chart"
+                role="img"
+                aria-label="Recorded temperatures over time, including minimum and maximum demo limits"></canvas>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+      <script>
+        const chartLabels = {{ chart_labels | tojson }};
+        const chartValues = {{ chart_values | tojson }};
+        const minimumTemperature = {{ temp_min_c | tojson }};
+        const maximumTemperature = {{ temp_max_c | tojson }};
+
+        const temperatureChart = new Chart(document.getElementById('temperature-history-chart'), {
+          type: 'line',
+          data: {
+            labels: chartLabels,
+            datasets: [
+              {
+                label: 'Temperature (°C)',
+                data: chartValues,
+                borderColor: '#3b7375',
+                backgroundColor: 'rgba(59, 115, 117, 0.12)',
+                borderWidth: 2,
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                tension: 0.25
+              },
+              {
+                label: `Minimum limit (${minimumTemperature}°C)`,
+                data: chartLabels.map(() => minimumTemperature),
+                borderColor: '#d99a45',
+                borderDash: [6, 4],
+                borderWidth: 1.5,
+                pointRadius: 0
+              },
+              {
+                label: `Maximum limit (${maximumTemperature}°C)`,
+                data: chartLabels.map(() => maximumTemperature),
+                borderColor: '#a85b5b',
+                borderDash: [6, 4],
+                borderWidth: 1.5,
+                pointRadius: 0
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false
+            },
+            scales: {
+              y: {
+                title: {
+                  display: true,
+                  text: 'Temperature (°C)'
+                },
+                suggestedMin: minimumTemperature,
+                suggestedMax: maximumTemperature,
+                grid: {
+                  color: 'rgba(48, 59, 60, 0.1)'
+                }
+              },
+              x: {
+                ticks: {
+                  maxRotation: 45,
+                  minRotation: 0
+                },
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        });
+
+        const updateChartTheme = () => {
+          const chartStyles = getComputedStyle(document.documentElement);
+          const chartText = chartStyles.getPropertyValue('--chart-text').trim();
+          const chartGrid = chartStyles.getPropertyValue('--chart-grid').trim();
+
+          temperatureChart.data.datasets[0].borderColor =
+            chartStyles.getPropertyValue('--chart-line').trim();
+          temperatureChart.data.datasets[0].backgroundColor =
+            chartStyles.getPropertyValue('--chart-fill').trim();
+          temperatureChart.data.datasets[1].borderColor =
+            chartStyles.getPropertyValue('--chart-min').trim();
+          temperatureChart.data.datasets[2].borderColor =
+            chartStyles.getPropertyValue('--chart-max').trim();
+
+          Object.values(temperatureChart.options.scales).forEach(scale => {
+            scale.ticks.color = chartText;
+            scale.grid.color = chartGrid;
+            if (scale.title) {
+              scale.title.color = chartText;
+            }
+          });
+
+          temperatureChart.update('none');
+        };
+
+        updateChartTheme();
+        new MutationObserver(updateChartTheme).observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-bs-theme']
+        });
+      </script>
+    {% else %}
+      <p class="text-body-secondary mb-0">
+        The chart will appear here after the first temperature reading.
+      </p>
+    {% endif %}
+  </section>
 
   <a class="btn btn-primary" href="{{ url_for('sensor_readings') }}">View all readings</a>
 {% endblock content %}

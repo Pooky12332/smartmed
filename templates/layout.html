@@ -6,15 +6,15 @@
 
     <!-- Site Info -->
     {% if title %}
-      <title>FastAPI - {{ title }}</title>
+      <title>SmartMed - {{ title }}</title>
     {% else %}
-      <title>FastAPI Sensor Readings</title>
+      <title>SmartMed - Insulin Case Monitor</title>
     {% endif %}
-    <meta name="description" content="FastAPI Tutorial">
-    <meta name="author" content="Corey Schafer">
+    <meta name="description" content="Temperature monitoring for an insulin travel case.">
+    <meta name="author" content="SmartMed Team">
 
     <!-- Open Graph Tags: The title of the page for social media sharing. It can match the title tag or be more descriptive. -->
-    <meta property="og:title" content="FastAPI Sensors">
+    <meta property="og:title" content="SmartMed - Insulin Case Monitor">
 
     <!-- Open Graph Tags: Typically set to "website" for static sites or "article" for content-heavy pages. -->
     <meta property="og:type" content="website">
@@ -48,7 +48,7 @@
           href="{{ url_for("static", path='css/main.css') }}">
 
     <!-- Set a theme color that matches your website's primary color -->
-    <meta name="theme-color" content="#527c9f">
+    <meta name="theme-color" content="#3b7375">
 
     <!-- Favicon for all browsers -->
     <link rel="icon"
@@ -74,7 +74,7 @@
       <nav class="navbar navbar-expand-md bg-steel fixed-top"
            data-bs-theme="dark">
         <div class="container">
-          <a class="navbar-brand me-4" href="{{ url_for("sensor_readings") }}">FastAPI Sensors</a>
+          <a class="navbar-brand me-4" href="{{ url_for("home") }}">SmartMed</a>
           <button class="navbar-toggler"
                   type="button"
                   data-bs-toggle="collapse"
@@ -85,12 +85,40 @@
             <span class="navbar-toggler-icon"></span>
           </button>
           <div class="collapse navbar-collapse" id="navbarToggle">
-            <div class="navbar-nav me-auto">
-              <a class="nav-link active"
-                 aria-current="page"
-                 href="{{ url_for("home") }}">Home</a>
-              <a class="nav-link"
-                 href="{{ url_for("sensor_readings") }}">Readings</a>
+            <div class="navbar-nav me-auto main-nav-links">
+              <a class="nav-link {{ 'active' if request.url.path == '/' else '' }}"
+                 {% if request.url.path == '/' %}aria-current="page"{% endif %}
+                 href="{{ url_for("home") }}">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true" focusable="false">
+                  <path d="m3 10 9-7 9 7"></path>
+                  <path d="M5 9v12h14V9M9 21v-8h6v8"></path>
+                </svg>
+                <span>Home</span>
+              </a>
+              <a class="nav-link {{ 'active' if request.url.path.startswith('/readings') else '' }}"
+                 {% if request.url.path.startswith('/readings') %}aria-current="page"{% endif %}
+                 href="{{ url_for("sensor_readings") }}">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true" focusable="false">
+                  <path d="M5 4h14v16H5z"></path>
+                  <path d="M8 8h8M8 12h8M8 16h5"></path>
+                </svg>
+                <span>Readings</span>
+              </a>
+              <a class="nav-link {{ 'active' if request.url.path.startswith('/alerts') else '' }}"
+                 {% if request.url.path.startswith('/alerts') %}aria-current="page"{% endif %}
+                 href="{{ url_for("alerts") }}">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true" focusable="false">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                  <path d="M10 21h4"></path>
+                </svg>
+                <span>Alerts</span>
+              </a>
             </div>
             <!-- Navbar Right Side -->
             <div class="navbar-nav">
@@ -123,21 +151,19 @@
       </nav>
     </header>
 
-    <main role="main" class="container">
-      <div class="row">
-        <div class="col-md-8">
+    <main role="main" class="container app-main">
+      <div class="row justify-content-center">
+        <div class="col-12">
           {% block content %}
           {% endblock content %}
         </div>
-        <aside class="col-md-4">
-        </aside>
       </div>
     </main>
 
     <footer class="mt-auto py-3 bg-body-tertiary border-top">
       <div class="container text-center">
         <p class="text-body-secondary mb-0">
-          © <span id="year"></span> Corey Schafer
+          © <span id="year"></span> SmartMed
         </p>
       </div>
     </footer>
@@ -176,5 +202,3 @@
     </script>
   </body>
 </html>
-
-

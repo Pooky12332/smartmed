@@ -1,11 +1,11 @@
 {
-  "name": "FastAPI Blog",
-  "short_name": "FastAPI Blog",
-  "description": "FastAPI Tutorial",
+  "name": "SmartMed - Insulin Case Monitor",
+  "short_name": "SmartMed",
+  "description": "Temperature monitoring for an insulin travel case.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#527c9f",
+  "theme_color": "#3b7375",
   "icons": [
     {
       "src": "/static/icons/icon.png",

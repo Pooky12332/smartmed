@@ -8,6 +8,7 @@
             <p class="dashboard-eyebrow mb-2">INSULIN TRAVEL CASE</p>
             <h1 class="mb-1">Temperature readings</h1>
             <p class="text-body-secondary mb-0">Most recent readings are shown first.</p>
+            <span class="data-source-label mt-3">Simulated data · Demo only</span>
         </div>
         <span class="badge text-bg-secondary">{{ readings|length }} readings</span>
     </div>
@@ -15,7 +16,7 @@
     <div class="content-section overflow-hidden">
         <div class="table-responsive">
             <table class="table table-striped table-hover align-middle mb-0">
-                <thead class="table-dark">
+                <thead class="readings-table-header">
                     <tr>
                         <th scope="col" class="ps-4">Reading</th>
                         <th scope="col">Date and time</th>
