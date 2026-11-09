@@ -51,4 +51,3 @@ async def sensor_simulator():
     while True:
         generate_reading()
         await asyncio.sleep(10)
-
